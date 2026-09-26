@@ -1,0 +1,7 @@
+name: Run
+on: pull_request
+jobs:
+  build:
+    runs-on: self-hosted
+    steps:
+      - run: echo hi
