@@ -1,0 +1,18 @@
+[package]
+name = "rivet-core"
+description = "Pure static-analysis engine for GitHub Actions security auditing"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+serde_yaml = "0.9"
+
+[dev-dependencies]
+proptest = "1"
+criterion = "0.5"
+
+[[bench]]
+name = "scan"
+harness = false
