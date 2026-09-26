@@ -1,0 +1,7 @@
+name: Reuse
+on: push
+jobs:
+  call:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: org/repo/.github/workflows/build.yml@main
