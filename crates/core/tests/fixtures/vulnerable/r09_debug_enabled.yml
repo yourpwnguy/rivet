@@ -1,0 +1,9 @@
+name: Debug
+on: pull_request_target
+env:
+  ACTIONS_STEP_DEBUG: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo hi
