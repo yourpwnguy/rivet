@@ -23,7 +23,8 @@ Thumbs.db
 
 # Debug
 *.dSYM/
-core
+/core
+core.*
 vgcore.*
 
 # Private project notes
