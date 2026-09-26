@@ -1,0 +1,9 @@
+name: PR labeler
+on: pull_request_target
+permissions:
+  pull-requests: write
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "PR #${{ github.event.pull_request.number }}"
