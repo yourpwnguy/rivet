@@ -19,15 +19,15 @@ use rivet_core::severity::Severity;
 #[command(name = "rivet", version, about, long_about = None)]
 pub struct Args {
     /// Path to a repository or directory to scan.
-    #[arg(long, default_value = ".")]
+    #[arg(short, long, default_value = ".")]
     pub path: PathBuf,
 
     /// Recurse into subdirectories looking for `.github/workflows`.
-    #[arg(long)]
+    #[arg(short, long)]
     pub recursive: bool,
 
     /// Exit non-zero when a finding at or above this severity exists.
-    #[arg(long, value_enum, default_value_t = FailOn::High)]
+    #[arg(short = 'f', long, value_enum, default_value_t = FailOn::High)]
     pub fail_on: FailOn,
 
     /// Output format.
@@ -39,15 +39,15 @@ pub struct Args {
     pub quiet: bool,
 
     /// Disable colored output.
-    #[arg(long)]
+    #[arg(short = 'c', long)]
     pub no_color: bool,
 
     /// Override repository visibility (gates the self-hosted runner rule).
-    #[arg(long, value_enum)]
+    #[arg(short = 'v', long, value_enum)]
     pub repo_visibility: Option<VisibilityArg>,
 
     /// Show what a patched workflow would look like, without writing.
-    #[arg(long)]
+    #[arg(short = 'd', long)]
     pub fix_dry: bool,
 }
 
