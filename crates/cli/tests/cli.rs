@@ -27,22 +27,24 @@ fn temp_repo(fixtures: &[(&str, &str)]) -> tempfile::TempDir {
 /// `--list-rules` prints every rule id and exits 0 without scanning.
 #[test]
 fn list_rules_prints_all_rules_and_exits_zero() {
-    let out = rivet().arg("--list-rules").output().unwrap();
-    assert_eq!(out.status.code(), Some(0));
-    let stdout = String::from_utf8(out.stdout).unwrap();
-    for rule in [
-        "script-injection",
-        "pull-request-target",
-        "unpinned-action",
-        "overly-broad-permissions",
-        "secret-exfiltration",
-        "self-hosted-runner",
-        "fork-secrets",
-        "reusable-workflow-pin",
-        "debug-logging",
-        "artifact-poisoning",
-    ] {
-        assert!(stdout.contains(rule), "missing rule {rule}");
+    for flag in ["--list-rules", "-l"] {
+        let out = rivet().arg(flag).output().unwrap();
+        assert_eq!(out.status.code(), Some(0), "flag {flag} should exit 0");
+        let stdout = String::from_utf8(out.stdout).unwrap();
+        for rule in [
+            "script-injection",
+            "pull-request-target",
+            "unpinned-action",
+            "overly-broad-permissions",
+            "secret-exfiltration",
+            "self-hosted-runner",
+            "fork-secrets",
+            "reusable-workflow-pin",
+            "debug-logging",
+            "artifact-poisoning",
+        ] {
+            assert!(stdout.contains(rule), "flag {flag} missing rule {rule}");
+        }
     }
 }
 
