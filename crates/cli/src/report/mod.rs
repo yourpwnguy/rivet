@@ -10,6 +10,7 @@ use rivet_core::finding::Finding;
 use rivet_core::severity::Severity;
 
 pub mod json;
+pub mod list;
 pub mod table;
 pub mod text;
 
