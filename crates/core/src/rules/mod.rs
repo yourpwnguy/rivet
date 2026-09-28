@@ -9,6 +9,7 @@ use std::path::Path;
 use crate::config::Config;
 use crate::finding::{Finding, RuleId};
 use crate::model::Workflow;
+use crate::severity::Severity;
 
 mod r01_script_injection;
 mod r02_pull_request_target_checkout;
@@ -58,6 +59,68 @@ impl RuleContext<'_> {
     pub fn find_line(&self, needle: &str) -> Option<usize> {
         crate::locate::find_line(self.raw, needle)
     }
+}
+
+/// Static catalog of all rules: `(rule id, base severity, description)`.
+///
+/// Consumed by `--list-rules` to print what rivet checks without running a
+/// scan. The severity listed is the base severity; R02 downgrades to INFO at
+/// evaluation time when the workflow is metadata-only. Kept as a static table
+/// next to [`default_rules`] rather than a trait method so the listing and the
+/// registry live in one place and cannot drift apart.
+pub fn rule_catalog() -> &'static [(RuleId, Severity, &'static str)] {
+    &[
+        (
+            RuleId::ScriptInjection,
+            Severity::Critical,
+            "run: steps interpolating untrusted event context into shell",
+        ),
+        (
+            RuleId::PullRequestTargetCheckout,
+            Severity::High,
+            "pull_request_target workflow checking out PR head code; downgrades to INFO when metadata-only",
+        ),
+        (
+            RuleId::UnpinnedAction,
+            Severity::High,
+            "uses: pinned to a branch HEAD or mutable tag instead of a full commit SHA",
+        ),
+        (
+            RuleId::OverlyBroadPermissions,
+            Severity::High,
+            "missing permissions block, write-all, id-token: write without OIDC, or grants beyond the rivet.yaml ceiling",
+        ),
+        (
+            RuleId::SecretExfiltration,
+            Severity::High,
+            "secrets.* referenced directly inside a run: step, especially next to curl/wget/nc",
+        ),
+        (
+            RuleId::SelfHostedRunner,
+            Severity::Medium,
+            "runs-on: self-hosted in a repository declared public",
+        ),
+        (
+            RuleId::ForkSecretsAccess,
+            Severity::Medium,
+            "secrets.* referenced in pull_request workflows",
+        ),
+        (
+            RuleId::ReusableWorkflowPin,
+            Severity::Low,
+            "reusable workflow called with a mutable ref",
+        ),
+        (
+            RuleId::DebugLogging,
+            Severity::Info,
+            "ACTIONS_STEP_DEBUG enabled in pull_request_target with no add-mask",
+        ),
+        (
+            RuleId::ArtifactPoisoning,
+            Severity::Medium,
+            "workflow_run downloading artifacts without SHA validation",
+        ),
+    ]
 }
 
 /// The full v1 rule set, in ID order. The only edit point for new rules.

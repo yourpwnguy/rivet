@@ -49,6 +49,10 @@ pub struct Args {
     /// Show what a patched workflow would look like, without writing.
     #[arg(short = 'd', long)]
     pub fix_dry: bool,
+
+    /// List all rules with severity and description, then exit.
+    #[arg(long, conflicts_with_all = ["path", "recursive", "fail_on", "format", "quiet", "repo_visibility", "fix_dry"])]
+    pub list_rules: bool,
 }
 
 /// `--fail-on` severity threshold.
