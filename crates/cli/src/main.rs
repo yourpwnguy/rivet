@@ -40,7 +40,8 @@ fn run(args: &Args) -> Result<i32, CliError> {
     // --list-rules is a standalone mode: print the rule catalog and exit
     // before any scanning happens.
     if args.list_rules {
-        return Ok(print_rule_catalog());
+        report::list::print(report::color_enabled(args.no_color));
+        return Ok(0);
     }
 
     // Config: rivet.yaml at the scan root, CLI flags override file values.
@@ -116,16 +117,6 @@ fn run(args: &Args) -> Result<i32, CliError> {
         args.fail_on.to_severity(),
         had_errors,
     ))
-}
-
-/// Print the rule catalog and return the process exit code (always 0).
-fn print_rule_catalog() -> i32 {
-    let catalog = rivet_core::rules::rule_catalog();
-    println!("rivet rules ({})\n", catalog.len());
-    for (id, severity, description) in catalog {
-        println!("{id:<26} {severity:<8} {description}");
-    }
-    0
 }
 
 /// First path component — the "repo" for table grouping.
