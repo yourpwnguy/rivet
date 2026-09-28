@@ -1,7 +1,9 @@
 //! Rule catalog listing for `--list-rules`.
 //!
 //! Prints every rule with its number, base severity, and description in a
-//! scannable layout. Severity is colored to match the text report. Long
+//! scannable layout. Rules sit back to back with no blank line between them
+//! so all ten fit in a viewport; the R-number/severity/rule-id line is the
+//! visual separator. Severity is colored to match the text report. Long
 //! descriptions wrap onto indented continuation lines so the output stays
 //! readable at any terminal width.
 
@@ -30,7 +32,6 @@ pub fn print(color: bool) {
         };
         println!("{}  {}  {}", number, severity_cell, id.as_str());
         println!("{}", wrap_text(description, 72, 15));
-        println!();
     }
 }
 
