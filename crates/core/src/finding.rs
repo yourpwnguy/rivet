@@ -97,5 +97,118 @@ pub fn sort_findings(findings: &mut [Finding]) {
             .then_with(|| a.file.cmp(&b.file))
             .then_with(|| a.line.cmp(&b.line))
             .then_with(|| a.rule.as_str().cmp(b.rule.as_str()))
-    });
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn finding(rule: RuleId, severity: Severity, file: &str, line: Option<usize>) -> Finding {
+        Finding {
+            rule,
+            severity,
+            file: PathBuf::from(file),
+            line,
+            job: None,
+            message: "m".into(),
+            explanation: "e".into(),
+            fix: "t".into(),
+        }
+    }
+
+    /// Order key rendered as a comparable string, so one assertion covers
+    /// severity, file, and line ordering together.
+    fn order(findings: &[Finding]) -> Vec<(Severity, &str, Option<usize>)> {
+        findings
+            .iter()
+            .map(|f| (f.severity, f.file.to_str().unwrap(), f.line))
+            .collect()
+    }
+
+    /// Same as [`order`], but owning, so a snapshot can outlive the borrow
+    /// of the slice it came from.
+    fn owned_order(findings: &[Finding]) -> Vec<(Severity, String, Option<usize>)> {
+        findings
+            .iter()
+            .map(|f| (f.severity, f.file.display().to_string(), f.line))
+            .collect()
+    }
+
+    #[test]
+    fn sorts_worst_severity_first() {
+        let mut findings = vec![
+            finding(RuleId::DebugLogging, Severity::Info, "b.yml", Some(1)),
+            finding(
+                RuleId::ScriptInjection,
+                Severity::Critical,
+                "b.yml",
+                Some(9),
+            ),
+            finding(RuleId::UnpinnedAction, Severity::High, "b.yml", Some(5)),
+        ];
+        sort_findings(&mut findings);
+        assert_eq!(
+            order(&findings),
+            vec![
+                (Severity::Critical, "b.yml", Some(9)),
+                (Severity::High, "b.yml", Some(5)),
+                (Severity::Info, "b.yml", Some(1)),
+            ]
+        );
+    }
+
+    #[test]
+    fn sorts_by_file_then_line_within_same_severity() {
+        let mut findings = vec![
+            finding(RuleId::UnpinnedAction, Severity::High, "b.yml", Some(2)),
+            finding(RuleId::UnpinnedAction, Severity::High, "a.yml", Some(9)),
+            finding(RuleId::UnpinnedAction, Severity::High, "a.yml", Some(1)),
+        ];
+        sort_findings(&mut findings);
+        assert_eq!(
+            order(&findings),
+            vec![
+                (Severity::High, "a.yml", Some(1)),
+                (Severity::High, "a.yml", Some(9)),
+                (Severity::High, "b.yml", Some(2)),
+            ]
+        );
+    }
+
+    /// `None` line must sort before `Some(n)`, which `Option`'s derived
+    /// `Ord` gives for free; pin it so the ordering contract is explicit.
+    #[test]
+    fn unanchored_findings_sort_before_anchored_ones() {
+        let mut findings = vec![
+            finding(RuleId::UnpinnedAction, Severity::High, "a.yml", Some(1)),
+            finding(RuleId::UnpinnedAction, Severity::High, "a.yml", None),
+        ];
+        sort_findings(&mut findings);
+        assert_eq!(
+            order(&findings),
+            vec![
+                (Severity::High, "a.yml", None),
+                (Severity::High, "a.yml", Some(1)),
+            ]
+        );
+    }
+
+    #[test]
+    fn is_idempotent_on_already_sorted_input() {
+        let mut findings = vec![
+            finding(
+                RuleId::ScriptInjection,
+                Severity::Critical,
+                "a.yml",
+                Some(1),
+            ),
+            finding(RuleId::UnpinnedAction, Severity::High, "a.yml", Some(2)),
+        ];
+        sort_findings(&mut findings);
+        // Own the first result so the second sort can borrow mutably.
+        let once = owned_order(&findings);
+        sort_findings(&mut findings);
+        assert_eq!(owned_order(&findings), once);
+    }
 }
