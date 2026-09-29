@@ -11,6 +11,7 @@ mod exit;
 mod report;
 
 use std::collections::BTreeMap;
+use std::io;
 use std::process::ExitCode;
 use std::time::Instant;
 
@@ -28,6 +29,12 @@ fn main() -> ExitCode {
     let args = Args::parse();
     match run(&args) {
         Ok(code) => ExitCode::from(code as u8),
+        // A closed pipe (`rivet | head`) is the reader stopping early, not
+        // a failure. Exiting quietly matches how every other filter behaves
+        // and avoids dumping a panic backtrace into the user's terminal.
+        Err(CliError::Io { source, .. }) if source.kind() == io::ErrorKind::BrokenPipe => {
+            ExitCode::from(0)
+        }
         Err(e) => {
             eprintln!("rivet: error: {e}");
             ExitCode::from(1)
@@ -40,7 +47,10 @@ fn run(args: &Args) -> Result<i32, CliError> {
     // --list-rules is a standalone mode: print the rule catalog and exit
     // before any scanning happens.
     if args.list_rules {
-        report::list::print(report::color_enabled(args.no_color));
+        let stdout = io::stdout();
+        let mut out = stdout.lock();
+        report::list::write(&mut out, report::color_enabled(args.no_color))
+            .map_err(|e| CliError::io("cannot write rule catalog", e))?;
         return Ok(0);
     }
 
