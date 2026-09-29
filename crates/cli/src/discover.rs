@@ -51,12 +51,7 @@ pub fn discover(root: &Path, recursive: bool) -> Result<Vec<DiscoveredFile>, Cli
                             read_workflow(root, &wf.path(), &mut files)?;
                         }
                     }
-                } else if recursive
-                    || path.file_name().is_some_and(|n| n == ".github")
-                    || dir == root
-                {
-                    // Non-recursive: descend one level at the root and into
-                    // `.github`, which is where workflows live.
+                } else if should_descend(recursive, &dir, &path) {
                     dirs.push(path);
                 }
             }
@@ -64,6 +59,14 @@ pub fn discover(root: &Path, recursive: bool) -> Result<Vec<DiscoveredFile>, Cli
     }
     files.sort_by(|a, b| a.path.cmp(&b.path));
     Ok(files)
+}
+
+/// Decide whether to descend into `path` during directory walking.
+///
+/// Always descends when `recursive`. In non-recursive mode, descends one
+/// level at the root and into `.github`, which is where workflows live.
+fn should_descend(recursive: bool, current_dir: &Path, path: &Path) -> bool {
+    recursive || path.file_name().is_some_and(|n| n == ".github") || current_dir == path
 }
 
 /// True for a directory named `workflows` inside a `.github` directory.
