@@ -103,6 +103,35 @@ impl RunsOn {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn label_form_detects_self_hosted() {
+        assert!(RunsOn::Label("self-hosted".into()).is_self_hosted());
+        assert!(!RunsOn::Label("ubuntu-latest".into()).is_self_hosted());
+    }
+
+    /// `runs-on: [self-hosted, linux]` matches if *any* label matches: the
+    /// job runs on whichever runner is available, so one self-hosted label
+    /// is enough to expose it.
+    #[test]
+    fn label_list_detects_self_hosted_anywhere() {
+        assert!(RunsOn::Labels(vec!["linux".into(), "self-hosted".into()]).is_self_hosted());
+        assert!(!RunsOn::Labels(vec!["linux".into(), "x64".into()]).is_self_hosted());
+    }
+
+    /// Runner groups: the group *name* is not a label, only the labels
+    /// matter. A group named "self-hosted-prod" with no matching label is
+    /// deliberately not flagged; R06 keys off the label GitHub matches on.
+    #[test]
+    fn group_form_uses_labels_not_group_name() {
+        assert!(RunsOn::Group("prod".into(), vec!["self-hosted".into()]).is_self_hosted());
+        assert!(!RunsOn::Group("self-hosted".into(), vec!["linux".into()]).is_self_hosted());
+    }
+}
+
 /// A single step.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Step {
