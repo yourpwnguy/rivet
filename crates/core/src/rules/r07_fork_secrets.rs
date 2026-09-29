@@ -76,7 +76,11 @@ fn secret_finding(
             "setup that does provide them, leak them to the fork."
         )
         .to_owned(),
-        fix: "Guard secret access behind a non-fork condition, e.g. `if: github.event.pull_request.head.repo.full_name == github.repository`".to_owned(),
+        fix: concat!(
+            "Guard secret access behind a non-fork condition, e.g. `if: ",
+            "github.event.pull_request.head.repo.full_name == github.repository`"
+        )
+        .to_owned(),
     }
 }
 
