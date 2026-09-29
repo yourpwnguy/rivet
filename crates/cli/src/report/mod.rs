@@ -14,6 +14,24 @@ pub mod list;
 pub mod table;
 pub mod text;
 
+/// ANSI reset, used to close any style opened by [`severity_color`].
+pub(super) const RESET: &str = "\x1b[0m";
+
+/// ANSI color per severity.
+///
+/// Lives here rather than in a single renderer because two of them color
+/// severity (`text` for findings, `list` for the rule catalog) and a report
+/// where CRITICAL is red in one view and yellow in another reads as a bug.
+pub(super) fn severity_color(severity: Severity) -> &'static str {
+    match severity {
+        Severity::Critical => "\x1b[1;31m", // bold red
+        Severity::High => "\x1b[31m",       // red
+        Severity::Medium => "\x1b[33m",     // yellow
+        Severity::Low => "\x1b[34m",        // blue
+        Severity::Info => "\x1b[2m",        // dim
+    }
+}
+
 /// Rendered scan statistics shown in text and table mode.
 #[derive(Debug, Clone, Copy)]
 pub struct Stats {
