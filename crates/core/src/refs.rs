@@ -66,4 +66,28 @@ mod tests {
         assert!(is_reusable("org/repo/.github/workflows/x.yaml@v1"));
         assert!(!is_reusable("actions/checkout@v4"));
     }
+
+    /// A short SHA is ambiguous: GitHub resolves it, but only a full 40-char
+    /// hash is immutable in practice, so it must be treated as mutable.
+    #[test]
+    fn short_sha_is_treated_as_mutable() {
+        assert_eq!(classify("actions/checkout@a1b2c3d"), RefKind::MutableTag);
+        assert_eq!(classify("actions/checkout@a1b2c3d4"), RefKind::MutableTag);
+    }
+
+    /// 40 chars of non-hex is not a SHA either (e.g. a 40-char tag name).
+    #[test]
+    fn forty_non_hex_chars_is_not_a_sha() {
+        let not_hex = "z".repeat(40);
+        assert_eq!(
+            classify(&format!("actions/checkout@{not_hex}")),
+            RefKind::MutableTag
+        );
+    }
+
+    #[test]
+    fn local_actions_are_first_party() {
+        assert_eq!(classify("./.github/actions/build"), RefKind::Local);
+        assert_eq!(classify("./"), RefKind::Local);
+    }
 }
