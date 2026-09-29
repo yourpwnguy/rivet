@@ -48,7 +48,34 @@ fn list_rules_prints_all_rules_and_exits_zero() {
     }
 }
 
-/// Assert a clean run: exit 0, a summary line, no findings.
+/// Piping into a reader that stops early (`rivet -l | head`) must exit
+/// quietly. A broken pipe is the reader hanging up, not a rivet failure, and
+/// must never surface as a panic backtrace.
+#[test]
+fn broken_pipe_exits_quietly() {
+    use std::io::Read;
+    use std::process::Stdio;
+
+    // `head -c 1` closes the pipe after one byte, forcing the write to fail.
+    let mut child = rivet()
+        .arg("--list-rules")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stdout = child.stdout.take().unwrap();
+    let mut buf = [0u8; 1];
+    let _ = stdout.read(&mut buf);
+    drop(stdout); // close the read end, so the child's next write breaks
+
+    let out = child.wait_with_output().unwrap();
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(
+        !stderr.contains("panicked"),
+        "broken pipe panicked: {stderr}"
+    );
+}
+
 #[test]
 fn clean_repo_exits_zero() {
     let repo = temp_repo(&[
