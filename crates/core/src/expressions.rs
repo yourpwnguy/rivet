@@ -105,4 +105,41 @@ mod tests {
         assert!(!is_untrusted("github.repository"));
         assert!(!is_untrusted("github.event.pull_request.number"));
     }
+
+    /// Multiple expressions on one line and across lines: the scanner must
+    /// advance past each one and keep the line counter correct, which is
+    /// what lets R01 point at the right line in a multi-line `run:` block.
+    #[test]
+    fn tracks_lines_across_multiple_expressions() {
+        let raw = "a ${{ one }} b ${{ two }}\nc ${{ three }}\n";
+        let exprs = extract(raw);
+        let got: Vec<(&str, usize)> = exprs.iter().map(|e| (e.text, e.line)).collect();
+        assert_eq!(got, vec![("one", 1), ("two", 1), ("three", 2)]);
+    }
+
+    /// Expressions split across lines are still one expression; the line
+    /// recorded is where the `${{` starts, not where the body ends.
+    #[test]
+    fn multiline_expression_anchors_at_opening_delimiter() {
+        let raw = "run: |\n  echo ${{ format(\n    '{0}', x) }}\n";
+        let exprs = extract(raw);
+        assert_eq!(exprs.len(), 1);
+        assert_eq!(exprs[0].line, 2);
+    }
+
+    /// An unterminated `${{` must stop the scan rather than panic or loop.
+    #[test]
+    fn unterminated_expression_stops_scan() {
+        let exprs = extract("echo ${{ github.event.issue.title");
+        assert!(exprs.is_empty());
+    }
+
+    #[test]
+    fn detects_secret_references() {
+        assert!(references_secrets("secrets.API_KEY"));
+        assert!(references_secrets("format('{0}', secrets.TOKEN)"));
+        assert!(!references_secrets("github.event.issue.title"));
+        // The `secrets` context itself, without a member access.
+        assert!(!references_secrets("secrets"));
+    }
 }
