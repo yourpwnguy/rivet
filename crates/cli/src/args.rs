@@ -51,7 +51,19 @@ pub struct Args {
     pub fix_dry: bool,
 
     /// List all rules with severity and description, then exit.
-    #[arg(short = 'l', long, conflicts_with_all = ["path", "recursive", "fail_on", "format", "quiet", "repo_visibility", "fix_dry"])]
+    #[arg(
+        short = 'l',
+        long,
+        conflicts_with_all = [
+            "path",
+            "recursive",
+            "fail_on",
+            "format",
+            "quiet",
+            "repo_visibility",
+            "fix_dry"
+        ]
+    )]
     pub list_rules: bool,
 }
 
