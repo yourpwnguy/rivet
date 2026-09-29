@@ -20,10 +20,7 @@ use std::io::Write;
 use rivet_core::finding::Finding;
 use rivet_core::severity::Severity;
 
-use super::Stats;
-
-/// ANSI reset.
-const RESET: &str = "\x1b[0m";
+use super::{RESET, Stats, severity_color};
 
 /// Maximum rendered length of a single line of message/explanation/code.
 const MAX_LINE: usize = 100;
@@ -109,17 +106,6 @@ fn glyph(severity: Severity) -> &'static str {
     match severity {
         Severity::Info => "ℹ",
         _ => "✗",
-    }
-}
-
-/// ANSI color per severity.
-fn severity_color(severity: Severity) -> &'static str {
-    match severity {
-        Severity::Critical => "\x1b[1;31m", // bold red
-        Severity::High => "\x1b[31m",       // red
-        Severity::Medium => "\x1b[33m",     // yellow
-        Severity::Low => "\x1b[34m",        // blue
-        Severity::Info => "\x1b[2m",        // dim
     }
 }
 
