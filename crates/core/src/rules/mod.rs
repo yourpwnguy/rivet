@@ -88,7 +88,10 @@ pub fn rule_catalog() -> &'static [(RuleId, Severity, &'static str)] {
         (
             RuleId::OverlyBroadPermissions,
             Severity::High,
-            "missing permissions block, write-all, id-token: write without OIDC, or grants beyond the rivet.yaml ceiling",
+            concat!(
+                "missing permissions block, write-all, id-token: write without ",
+                "OIDC, or grants beyond the rivet.yaml ceiling"
+            ),
         ),
         (
             RuleId::SecretExfiltration,
