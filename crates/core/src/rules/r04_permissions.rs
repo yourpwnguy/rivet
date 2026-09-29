@@ -67,7 +67,11 @@ fn check_scope(
                 "Least privilege starts with declaring what you need."
             )
             .to_owned(),
-            fix: "Add a `permissions:` block with only the scopes each job needs, e.g. `permissions: contents: read`".to_owned(),
+            fix: concat!(
+                "Add a `permissions:` block with only the scopes each job needs, ",
+                "e.g. `permissions: contents: read`"
+            )
+            .to_owned(),
         });
         return;
     };
@@ -79,7 +83,11 @@ fn check_scope(
             line: ctx.find_line(needle),
             job: None,
             message: format!("{scope} sets permissions: write-all"),
-            explanation: "write-all grants every scope to every job; one compromised step becomes a repo-wide breach.".to_owned(),
+            explanation: concat!(
+                "write-all grants every scope to every job; one compromised ",
+                "step becomes a repo-wide breach."
+            )
+            .to_owned(),
             fix: "Replace `write-all` with the minimal set of scopes each job needs".to_owned(),
         });
         return;
@@ -115,7 +123,11 @@ fn check_scope(
                 message: format!(
                     "{scope} grants {perm}: {access}, beyond the configured maximum of {max}"
                 ),
-                explanation: "rivet.yaml declares the most this repo needs; a larger grant is either a mistake or an escalation path.".to_owned(),
+                explanation: concat!(
+                    "rivet.yaml declares the most this repo needs; a larger grant ",
+                    "is either a mistake or an escalation path."
+                )
+                .to_owned(),
                 fix: format!(
                     "Reduce {perm} to {max}, or update rivet.yaml if the broader grant is intentional"
                 ),
