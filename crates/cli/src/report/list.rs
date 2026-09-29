@@ -7,43 +7,44 @@
 //! descriptions wrap onto indented continuation lines so the output stays
 //! readable at any terminal width.
 
-use rivet_core::rules::rule_catalog;
-use rivet_core::severity::Severity;
+use std::io::Write;
 
-/// Print the rule catalog to stdout.
+use rivet_core::rules::rule_catalog;
+
+use super::{RESET, severity_color};
+
+/// Column descriptions wrap at, tuned to fit an 80-column terminal.
+const WRAP_WIDTH: usize = 72;
+
+/// Indent for a rule's description lines, aligning them under the rule id
+/// that precedes them (`R01  CRITICAL  `).
+const DESC_INDENT: usize = 15;
+
+/// Write the rule catalog to `out`.
 ///
 /// `color` follows the same TTY/NO_COLOR/TERM rules as the text report so
-/// piped output stays machine-clean.
-pub fn print(color: bool) {
+/// piped output stays machine-clean. Writing goes through an explicit
+/// `Write` rather than `println!` so a closed pipe (`rivet -l | head`)
+/// surfaces as an error for the caller to handle instead of a panic.
+pub fn write<W: Write>(out: &mut W, color: bool) -> std::io::Result<()> {
     let catalog = rule_catalog();
-    println!("rivet rules ({})\n", catalog.len());
+    writeln!(out, "rivet rules ({})\n", catalog.len())?;
     for (idx, (id, severity, description)) in catalog.iter().enumerate() {
-        let number = format!("R{:02}", idx + 1);
         let severity_label = severity.to_string().to_uppercase();
         let severity_cell = if color {
             format!(
                 "{}{:<8}{}",
                 severity_color(*severity),
                 severity_label,
-                "\x1b[0m"
+                RESET
             )
         } else {
             format!("{:<8}", severity_label)
         };
-        println!("{}  {}  {}", number, severity_cell, id.as_str());
-        println!("{}", wrap_text(description, 72, 15));
+        writeln!(out, "R{:02}  {}  {}", idx + 1, severity_cell, id.as_str())?;
+        writeln!(out, "{}", wrap_text(description, WRAP_WIDTH, DESC_INDENT))?;
     }
-}
-
-/// ANSI color per severity, matching the text report.
-fn severity_color(severity: Severity) -> &'static str {
-    match severity {
-        Severity::Critical => "\x1b[1;31m", // bold red
-        Severity::High => "\x1b[31m",       // red
-        Severity::Medium => "\x1b[33m",     // yellow
-        Severity::Low => "\x1b[34m",        // blue
-        Severity::Info => "\x1b[2m",        // dim
-    }
+    Ok(())
 }
 
 /// Word-wrap `text` to `width` columns, indenting every line by `indent`
@@ -77,23 +78,60 @@ fn wrap_text(text: &str, width: usize, indent: usize) -> String {
 mod tests {
     use super::*;
 
+    /// Indentation as a string, for readable prefix assertions.
+    fn pad() -> String {
+        " ".repeat(DESC_INDENT)
+    }
+
     #[test]
     fn wraps_long_descriptions_with_indent() {
         let wrapped = wrap_text(
             "pull_request_target workflow checking out PR head code; downgrades to INFO when metadata-only",
-            72,
-            15,
+            WRAP_WIDTH,
+            DESC_INDENT,
         );
         let lines: Vec<&str> = wrapped.lines().collect();
         assert_eq!(lines.len(), 2);
-        assert!(lines[0].starts_with("               "));
-        assert!(lines[1].starts_with("               "));
-        assert!(lines[0].len() <= 72);
+        assert!(lines.iter().all(|l| l.starts_with(&pad())));
+        assert!(lines.iter().all(|l| l.len() <= WRAP_WIDTH));
     }
 
     #[test]
     fn short_descriptions_stay_on_one_line() {
-        let wrapped = wrap_text("reusable workflow called with a mutable ref", 72, 15);
+        let wrapped = wrap_text(
+            "reusable workflow called with a mutable ref",
+            WRAP_WIDTH,
+            DESC_INDENT,
+        );
         assert_eq!(wrapped.lines().count(), 1);
+    }
+
+    /// Renders every rule with a number, and no color when disabled.
+    #[test]
+    fn writes_numbered_rules_without_ansi_when_uncolored() {
+        let mut buf = Vec::new();
+        write(&mut buf, false).unwrap();
+        let out = String::from_utf8(buf).unwrap();
+        assert!(out.starts_with("rivet rules (10)\n"));
+        for (idx, rule) in rule_catalog().iter().enumerate() {
+            assert!(
+                out.contains(&format!("R{:02}", idx + 1)),
+                "missing R number"
+            );
+            assert!(out.contains(rule.0.as_str()), "missing {}", rule.0);
+        }
+        assert!(!out.contains('\x1b'), "uncolored output must not emit ANSI");
+    }
+
+    /// The whole catalog must fit an 80-column terminal, otherwise the
+    /// `rivet -l` listing becomes a scroll rather than an overview.
+    #[test]
+    fn every_line_fits_an_80_column_terminal() {
+        let mut buf = Vec::new();
+        write(&mut buf, false).unwrap();
+        let out = String::from_utf8(buf).unwrap();
+        for line in out.lines() {
+            assert!(line.len() <= 80, "line exceeds 80 columns: {line:?}");
+        }
     }
 }
