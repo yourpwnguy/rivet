@@ -37,14 +37,19 @@ impl crate::rules::Rule for ArtifactPoisoning {
                     file: ctx.path.to_path_buf(),
                     line: ctx.find_line(target),
                     job: Some(job.id.clone()),
-                    message: "workflow_run workflow downloads an artifact without SHA validation".to_owned(),
+                    message: "workflow_run workflow downloads an artifact without SHA validation"
+                        .to_owned(),
                     explanation: concat!(
                         "Artifacts come from the triggering workflow, which a ",
                         "fork can influence. Without a SHA pin on the artifact, ",
                         "a poisoned upload is consumed by this privileged workflow."
                     )
                     .to_owned(),
-                    fix: "Pin the artifact by SHA (`with: { sha: … }`) or verify the uploader is a trusted workflow".to_owned(),
+                    fix: concat!(
+                        "Pin the artifact by SHA (`with: { sha: … }`) or verify ",
+                        "the uploader is a trusted workflow"
+                    )
+                    .to_owned(),
                 });
             }
         }
