@@ -87,40 +87,57 @@ impl Config {
     }
 }
 
+/// Parse a permission scope name, rejecting names rivet does not know.
+///
+/// `Permission::parse` maps unknown names to `Other(String)` so the workflow
+/// model stays lossless, but a *config* ceiling for an unrecognized scope is
+/// always a typo, so it is rejected here instead of silently ignored.
+fn parse_ceiling_permission(name: &str) -> Result<Permission, ConfigError> {
+    let permission = Permission::parse(name);
+    if matches!(permission, Permission::Other(_)) {
+        return Err(ConfigError(format!("unknown permission `{name}`")));
+    }
+    Ok(permission)
+}
+
+/// Parse an access level keyword.
+fn parse_access(value: &str) -> Result<Access, ConfigError> {
+    match value {
+        "read" => Ok(Access::Read),
+        "write" => Ok(Access::Write),
+        "none" => Ok(Access::None),
+        other => Err(ConfigError(format!(
+            "invalid access `{other}` (expected read, write, or none)"
+        ))),
+    }
+}
+
 /// Parse `permissions: { granted_max: { contents: read, … } }`.
+///
+/// Keys other than `granted_max` are skipped so the block can grow later
+/// without breaking existing configs. Non-string values are rejected rather
+/// than coerced: a ceiling written as `yes` or a bare number is a mistake,
+/// and silently reading it as something else would weaken the policy.
 fn parse_granted_max(v: &Value) -> Result<HashMap<Permission, Access>, ConfigError> {
-    let Value::Mapping(p) = v else {
+    let Value::Mapping(permissions) = v else {
         return Err(ConfigError("permissions must be a mapping".into()));
     };
     let mut out = HashMap::new();
-    for (k, v) in p {
-        let Value::String(name) = &k else { continue };
-        if name != "granted_max" {
+    for (key, value) in permissions {
+        if key.as_str() != Some("granted_max") {
             continue;
         }
-        let Value::Mapping(grants) = v else {
+        let Value::Mapping(grants) = value else {
             return Err(ConfigError("granted_max must be a mapping".into()));
         };
-        for (gk, gv) in grants {
-            let Value::String(perm) = &gk else { continue };
-            let permission = Permission::parse(perm);
-            if let Permission::Other(_) = &permission {
-                return Err(ConfigError(format!("unknown permission `{perm}`")));
-            }
-            let Value::String(access) = &gv else {
+        for (scope, level) in grants {
+            let Some(scope) = scope.as_str() else {
+                return Err(ConfigError("granted_max keys must be strings".into()));
+            };
+            let Some(level) = level.as_str() else {
                 return Err(ConfigError("granted_max values must be strings".into()));
             };
-            let access = match access.as_str() {
-                "read" => Access::Read,
-                "write" => Access::Write,
-                "none" => Access::None,
-                other => {
-                    return Err(ConfigError(format!(
-                        "invalid access `{other}` (expected read, write, or none)"
-                    )));
-                }
-            };
-            out.insert(permission, access);
+            out.insert(parse_ceiling_permission(scope)?, parse_access(level)?);
         }
     }
     Ok(out)
@@ -158,5 +175,42 @@ mod tests {
     #[test]
     fn rejects_unknown_permission() {
         assert!(Config::parse("permissions:\n  granted_max:\n    bogus: read\n").is_err());
+    }
+
+    /// Both keys in one file must survive: R06 needs visibility and R04
+    /// needs the ceilings simultaneously, which is the normal shape of a
+    /// real config.
+    #[test]
+    fn parses_both_visibility_and_granted_max() {
+        let cfg = Config::parse(
+            "repo_visibility: private\npermissions:\n  granted_max:\n    contents: read\n    packages: write\n",
+        )
+        .unwrap();
+        assert_eq!(cfg.repo_visibility, Visibility::Private);
+        assert_eq!(cfg.granted_max.len(), 2);
+        assert_eq!(cfg.granted_max[&Permission::Contents], Access::Read);
+        assert_eq!(cfg.granted_max[&Permission::Packages], Access::Write);
+    }
+
+    /// Unknown keys inside the permissions block are skipped so the schema
+    /// can grow without breaking existing configs.
+    #[test]
+    fn ignores_unknown_keys_in_permissions_block() {
+        let cfg =
+            Config::parse("permissions:\n  future_knob: true\n  granted_max:\n    issues: read\n")
+                .unwrap();
+        assert_eq!(cfg.granted_max.len(), 1);
+    }
+
+    /// A ceiling written as a non-string is a mistake, not a value to
+    /// coerce. Silently accepting it would weaken the policy.
+    #[test]
+    fn rejects_non_string_granted_max_value() {
+        assert!(Config::parse("permissions:\n  granted_max:\n    contents: true\n").is_err());
+    }
+
+    #[test]
+    fn rejects_non_mapping_permissions_block() {
+        assert!(Config::parse("permissions: contents\n").is_err());
     }
 }
